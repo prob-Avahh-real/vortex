@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.compiler }} · ${{ matrix.build_type }} · ${{ matrix.sanitizer }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc-14, clang-18]
+        build_type: [Debug, Release]
+        sanitizer: [none, asan, ubsan]
+        exclude:
+          # TSAN only on clang Debug (slow; overkill on all combos)
+          - sanitizer: none
+          - compiler: gcc-14
+            sanitizer: asan
+        include:
+          - compiler: clang-18
+            build_type: Debug
+            sanitizer: tsan
+            tsan: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+          if [[ "${{ matrix.compiler }}" == "gcc-14" ]]; then
+            sudo apt-get install -y g++-14
+            echo "CC=gcc-14" >> $GITHUB_ENV
+            echo "CXX=g++-14" >> $GITHUB_ENV
+          else
+            sudo apt-get install -y clang-18 clang-tidy-18
+            echo "CC=clang-18" >> $GITHUB_ENV
+            echo "CXX=clang++-18" >> $GITHUB_ENV
+          fi
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DVORTEX_BUILD_TESTS=ON
+          -DVORTEX_BUILD_BENCHMARKS=${{ matrix.build_type == 'Release' }}
+          -DVORTEX_USE_ASAN=${{ matrix.sanitizer == 'asan' }}
+          -DVORTEX_USE_UBSAN=${{ matrix.sanitizer == 'ubsan' }}
+          -DVORTEX_USE_TSAN=${{ matrix.tsan || false }}
+          -DCMAKE_TOOLCHAIN_FILE=${VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }} -j $(nproc)
+
+      - name: Test
+        if: matrix.sanitizer == 'none'
+        run: cd build && ctest --output-on-failure -j $(nproc)
+
+      - name: Test with sanitizer
+        if: matrix.sanitizer != 'none'
+        run: cd build && ctest --output-on-failure -j 2
+
+  lint:
+    name: clang-tidy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang-tidy-18 ninja-build
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_COMPILER=clang++-18
+          -DCMAKE_CXX_CLANG_TIDY=clang-tidy-18
+          -DVORTEX_BUILD_TESTS=ON
+          -DVORTEX_BUILD_BENCHMARKS=OFF
+
+      - name: Build (lint via clang-tidy)
+        run: cmake --build build -j $(nproc) 2>&1 | tee lint.log
+
+      - name: Check for clang-tidy warnings
+        run: '! grep -q "warning:" lint.log || (echo "clang-tidy warnings found" && exit 1)'

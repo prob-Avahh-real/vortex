@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package vortex.example;
+
+// Order status enum
+enum OrderStatus {
+    PENDING = 0;
+    FILLED = 1;
+    CANCELLED = 2;
+    REJECTED = 3;
+}
+
+// A trade order — demonstrates all field types
+message Order {
+    string symbol = 1;           // Variable-length string
+    double price = 2;            // Fixed 8 bytes
+    double quantity = 3;         // Fixed 8 bytes
+    int64 order_id = 4;          // Fixed 8 bytes
+    OrderStatus status = 5;      // Enum (int32)
+    uint32 timestamp = 6;        // Fixed 4 bytes
+    bool is_buy = 7;             // Fixed 1 byte
+}
+
+// Nested message example — demonstrates nesting
+message Account {
+    string account_id = 1;
+    double balance = 2;
+    repeated string tags = 3;    // Repeated field
+
+    message Position {
+        string symbol = 1;
+        double amount = 2;
+    }
+
+    repeated Position positions = 4;
+}
+
+// A simple RPC service
+service OrderService {
+    rpc PlaceOrder (Order) returns (Order);
+    rpc CancelOrder (Order) returns (Order);
+    rpc GetAccount (Account) returns (Account);
+}

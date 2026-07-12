@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "vortex",
+  "version": "0.1.0",
+  "description": "High-performance C++23 RPC framework with io_uring, zero-copy serialization, and lock-free concurrency.",
+  "dependencies": [
+    {
+      "name": "gtest",
+      "version>=": "1.14.0"
+    },
+    {
+      "name": "benchmark",
+      "version>=": "1.8.0"
+    },
+    {
+      "name": "fmt",
+      "version>=": "10.0.0"
+    },
+    {
+      "name": "spdlog",
+      "version>=": "1.12.0"
+    }
+  ]
+}

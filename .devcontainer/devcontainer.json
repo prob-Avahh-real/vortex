@@ -1,0 +1,33 @@
+{
+    "name": "Vortex RPC (C++23)",
+    "dockerFile": "../Dockerfile",
+    "context": "..",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cmake-tools",
+                "twxs.cmake",
+                "xaver.clang-format"
+            ],
+            "settings": {
+                "editor.formatOnSave": true,
+                "[cpp]": {
+                    "editor.defaultFormatter": "xaver.clang-format"
+                },
+                "C_Cpp.default.cppStandard": "c++23",
+                "C_Cpp.default.compilerPath": "/usr/bin/g++-14",
+                "cmake.configureArgs": [
+                    "-DVORTEX_BUILD_TESTS=ON",
+                    "-DVORTEX_BUILD_BENCHMARKS=ON",
+                    "-DVORTEX_BUILD_EXAMPLES=ON"
+                ],
+                "cmake.configureEnvironment": {
+                    "CMAKE_TOOLCHAIN_FILE": "/opt/vcpkg/scripts/buildsystems/vcpkg.cmake"
+                }
+            }
+        }
+    },
+    "forwardPorts": [8080, 18080, 18081],
+    "postCreateCommand": "cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DVORTEX_BUILD_TESTS=ON -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake && cmake --build build -j $(nproc)"
+}
